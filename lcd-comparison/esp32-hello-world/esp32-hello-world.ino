@@ -13,12 +13,12 @@
  and shows the time.
 
   The circuit:
- * LCD RS pin to digital pin 7
- * LCD Enable pin to digital pin 8
- * LCD D4 pin to digital pin 9
- * LCD D5 pin to digital pin 10
- * LCD D6 pin to digital pin 11
- * LCD D7 pin to digital pin 12
+ * LCD RS pin to digital pin 23
+ * LCD Enable pin to digital pin 22
+ * LCD D4 pin to digital pin 21
+ * LCD D5 pin to digital pin 19
+ * LCD D6 pin to digital pin 18
+ * LCD D7 pin to digital pin 5
  * LCD R/W pin to ground
  * LCD VSS pin to ground
  * LCD VCC pin to 5V
