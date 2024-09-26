@@ -22,7 +22,6 @@ const int SERVO_DEGREES = 80;
 
 unsigned long twoSecTimer = 0;
 bool showFirst = true;
-bool motionArmed = false;
 
 const int REMOTE_MODE = 1;
 const int MOTION_MODE = 2;
@@ -31,6 +30,9 @@ int lastMode = 0;
 
 bool doRemoteBlast = false;
 int oldRemoteVal = HIGH;
+
+bool doMotionBlast = false;
+bool doMotionArm = false;
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 Servo lServo;
@@ -76,13 +78,13 @@ bool flip() {
   }
 }
 
-void offPosition() {
+void blastOff() {
   Serial.println("Moving servos to off position");
   lServo.write(L_SERVO_START);
   rServo.write(R_SERVO_START);
 }
 
-void onPosition() {
+void blastOn() {
   Serial.println("Moving servos to on position");
   int lEnd = L_SERVO_START + SERVO_DEGREES;
   int rEnd = R_SERVO_START - SERVO_DEGREES;
@@ -101,7 +103,7 @@ void setup() {
   Serial.println("Initializing right servo");
   rServo.attach(R_SERVO);
   Serial.println("Done with servo initialization");
-  offPosition();
+  blastOff();
 
   pinMode(SWITCH_REMOTE, INPUT_PULLUP);
   pinMode(SWITCH_MOTION, INPUT_PULLUP);
@@ -132,6 +134,8 @@ void loop() {
   Serial.print(", Seconds: ");
   Serial.println(secondsSinceStart);
   if (remoteMode == HIGH) {
+    doMotionArm = false; // needed?
+    doMotionBlast = false; // needed?
     if (lastMode == 0) {
       lastMode = REMOTE_MODE;
       doRemoteBlast = false;
@@ -163,24 +167,19 @@ void loop() {
           showFirst = true;
         }
       }
+      blastOff();
     } else {
       setLedToWhite();
       lcd.print("Blasting!!!     ");
+      blastOn();
     }
 
   } else if (motionMode == HIGH) {
-    if (lastMode == 0) {
-      lastMode = MOTION_MODE;
-    } else if ((lastMode == REMOTE_MODE) || (lastMode == UNKNOWN_MODE)) {
-      // just switched mode
-      lastMode = MOTION_MODE;
-    }
+    doRemoteBlast = false; // needed?
     lcd.setCursor(0,0);
     lcd.print("TPBlaster Motion");
     if (secondsSinceStart < PIR_INIT_TIME) {
       setLedToRed();
-      // lcd.setCursor(14, 1);
-      // lcd.print("  ");
       lcd.setCursor(0, 1);
       if ((PIR_INIT_TIME - secondsSinceStart) >= 10) {
         lcd.print("Initializing " + (String)(PIR_INIT_TIME - secondsSinceStart) + " ");
@@ -190,17 +189,64 @@ void loop() {
       Serial.println("Initializing");
       Serial.println(PIR_INIT_TIME - secondsSinceStart);
     } else {
-      setLedToBlue();
-      lcd.setCursor(0, 1);
-      // lcd.print("Motion Ready    ");
-      Serial.println("Motion Ready");
-      if (flip()) {
-        if (showFirst) {
-          lcd.print("Press Remote    ");
-          showFirst = false;
+
+      if (lastMode == 0) {
+        lastMode = MOTION_MODE;
+        doMotionArm = false;
+        doMotionBlast = false;
+        oldRemoteVal = remoteSensor;
+      } else if ((lastMode == REMOTE_MODE) || (lastMode == UNKNOWN_MODE)) {
+        // just switched mode
+        lastMode = MOTION_MODE;
+        doMotionArm = false;
+        doMotionBlast = false;
+        oldRemoteVal = remoteSensor;
+      } else if (remoteSensor != oldRemoteVal) {
+        // Serial.println("**** CHECKING");
+        if (doMotionArm == false) {
+          // Serial.println("$$$$$ FALSE to TRUE");
+          doMotionArm = true;
         } else {
-          lcd.print("Button to Arm  ");
-          showFirst = true;
+          // Serial.println("????? TRUE to FALSE");
+          doMotionArm = false;
+        }
+        oldRemoteVal = remoteSensor;
+      }
+
+      if ((doMotionArm == true) && (motionDetector == HIGH)) {
+        setLedToWhite();
+        lcd.setCursor(0, 1);
+        lcd.print("Blasting!!!     ");
+        Serial.println("Motion Blasting");
+        blastOn();
+        delay(7000);
+        blastOff();
+        doMotionArm = false;
+      } else if (doMotionArm == true) {
+        setLedToYellow();
+        lcd.setCursor(0, 1);
+        Serial.println("Motion Detection Armed");
+        if (flip()) {
+          if (showFirst) {
+            lcd.print("Motion Detection");
+            showFirst = false;
+          } else {
+            lcd.print("Armed and Ready!");
+            showFirst = true;
+          }
+        }
+      } else if (doMotionArm == false) {
+        setLedToBlue();
+        lcd.setCursor(0, 1);
+        Serial.println("Motion Ready");
+        if (flip()) {
+          if (showFirst) {
+            lcd.print("Press Remote    ");
+            showFirst = false;
+          } else {
+            lcd.print("Button to Arm   ");
+            showFirst = true;
+          }
         }
       }
     }
