@@ -3,21 +3,38 @@
  https://github.com/johnrickman/LiquidCrystal_I2C/archive/refs/tags/1.1.3.zip
  */
 #include <LiquidCrystal_I2C.h>
+#include <Servo.h>
 
 #define SWITCH_REMOTE 2
 #define SWITCH_MOTION 4
 #define RGB_LED_R 3
 #define RGB_LED_G 5
 #define RGB_LED_B 6
+#define L_SERVO 9
+#define R_SERVO 10
+#define REMOTE_SENSOR 12
 #define MOTION_DETECTOR 14 // A0
 
 const int PIR_INIT_TIME = 30; // 30 seconds to init PIR motion sensor
+const int L_SERVO_START = 0;
+const int R_SERVO_START = 170;
+const int SERVO_DEGREES = 80;
 
 unsigned long twoSecTimer = 0;
 bool showFirst = true;
 bool motionArmed = false;
 
+const int REMOTE_MODE = 1;
+const int MOTION_MODE = 2;
+const int UNKNOWN_MODE = 3;
+int lastMode = 0;
+
+bool doRemoteBlast = false;
+int oldRemoteVal = HIGH;
+
 LiquidCrystal_I2C lcd(0x27, 16, 2);
+Servo lServo;
+Servo rServo;
 
 void setLedToRed() {
   digitalWrite(RGB_LED_R, HIGH);
@@ -59,10 +76,32 @@ bool flip() {
   }
 }
 
+void offPosition() {
+  Serial.println("Moving servos to off position");
+  lServo.write(L_SERVO_START);
+  rServo.write(R_SERVO_START);
+}
+
+void onPosition() {
+  Serial.println("Moving servos to on position");
+  int lEnd = L_SERVO_START + SERVO_DEGREES;
+  int rEnd = R_SERVO_START - SERVO_DEGREES;
+  lServo.write(lEnd);
+  rServo.write(rEnd);
+}
+
 void setup() {
   Serial.begin(9600);
 
   twoSecTimer = millis();
+
+  pinMode(REMOTE_SENSOR, INPUT);
+  Serial.println("Initializing left servo");
+  lServo.attach(L_SERVO);
+  Serial.println("Initializing right servo");
+  rServo.attach(R_SERVO);
+  Serial.println("Done with servo initialization");
+  offPosition();
 
   pinMode(SWITCH_REMOTE, INPUT_PULLUP);
   pinMode(SWITCH_MOTION, INPUT_PULLUP);
@@ -79,6 +118,7 @@ void loop() {
   int remoteMode = digitalRead(SWITCH_REMOTE);
   int motionMode = digitalRead(SWITCH_MOTION);
   int motionDetector = digitalRead(MOTION_DETECTOR);
+  int remoteSensor = digitalRead(REMOTE_SENSOR);
   unsigned long secondsSinceStart = millis() / 1000;
 
   Serial.print("Remote Mode: ");
@@ -87,23 +127,54 @@ void loop() {
   Serial.print(motionMode);
   Serial.print(", Motion Detector: ");
   Serial.print(motionDetector);
+  Serial.print(", Remote: ");
+  Serial.print(remoteSensor);
   Serial.print(", Seconds: ");
   Serial.println(secondsSinceStart);
   if (remoteMode == HIGH) {
+    if (lastMode == 0) {
+      lastMode = REMOTE_MODE;
+      doRemoteBlast = false;
+      oldRemoteVal = remoteSensor;
+    } else if ((lastMode == MOTION_MODE) || (lastMode == UNKNOWN_MODE)) {
+      // just switched mode
+      lastMode = REMOTE_MODE;
+      doRemoteBlast = false;
+      oldRemoteVal = remoteSensor;
+    } else if (remoteSensor != oldRemoteVal) {
+      if (doRemoteBlast == false) {
+        doRemoteBlast = true;
+      } else {
+        doRemoteBlast = false;
+      }
+      oldRemoteVal = remoteSensor;
+    }
     lcd.setCursor(0,0);
     lcd.print("TPBlaster Remote");
     lcd.setCursor(0, 1);
-    if (flip()) {
-      if (showFirst) {
-        lcd.print("Press Remote    ");
-        showFirst = false;
-      } else {
-        lcd.print("Button to Shoot ");
-        showFirst = true;
+    if (doRemoteBlast == false) {
+      setLedToGreen();
+      if (flip()) {
+        if (showFirst) {
+          lcd.print("Press Remote    ");
+          showFirst = false;
+        } else {
+          lcd.print("Button to Blast!");
+          showFirst = true;
+        }
       }
+    } else {
+      setLedToWhite();
+      lcd.print("Blasting!!!     ");
     }
-    setLedToGreen();
+
   } else if (motionMode == HIGH) {
+    if (lastMode == 0) {
+      lastMode = MOTION_MODE;
+    } else if ((lastMode == REMOTE_MODE) || (lastMode == UNKNOWN_MODE)) {
+      // just switched mode
+      lastMode = MOTION_MODE;
+    }
     lcd.setCursor(0,0);
     lcd.print("TPBlaster Motion");
     if (secondsSinceStart < PIR_INIT_TIME) {
@@ -134,6 +205,9 @@ void loop() {
       }
     }
   } else {
+    if (lastMode == 0) {
+      lastMode = UNKNOWN_MODE;
+    }
     lcd.setCursor(0,0);
     lcd.print("Unknown Mode    ");
     lcd.setCursor(0,1);
