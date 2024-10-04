@@ -15,7 +15,7 @@
 #define REMOTE_SENSOR 12
 #define MOTION_DETECTOR 14 // A0
 
-const int PIR_INIT_TIME = 30; // 30 seconds to init PIR motion sensor
+const int PIR_INIT_TIME = 60; // 60 seconds to init PIR motion sensor
 const int L_SERVO_START = 0;
 const int R_SERVO_START = 170;
 const int SERVO_DEGREES = 80;
