@@ -7,11 +7,13 @@
 
 #define RX 10
 #define TX 11
+#define MOTION_DETECTOR 14 // A0
 
 SerialMP3Player mp3(RX,TX);
 uint8_t answer[10] = {0};
 int fileCount = 0;
 const long RESEND_INTERVAL = 3000;
+const int PIR_INIT_TIME = 60; // 60 seconds to init PIR motion sensor
 
 void setup() {
   randomSeed(analogRead(0));
@@ -20,15 +22,25 @@ void setup() {
   mp3.begin(9600);
   delay(500);
 
+  pinMode(MOTION_DETECTOR, INPUT);
+
   mp3.sendCommand(CMD_SEL_DEV, 0, 2);
   delay(500);
 
   fileCount = getFileCount();
   Serial.println("File count: " + (String) fileCount);
 
+  waitForPirToInit();
 }
 
 void loop() {
+  int motionDetector = digitalRead(MOTION_DETECTOR);
+
+  playRandomFile();
+  delay(1000);
+}
+
+void playRandomFile(void) {
   int whichFile = random(fileCount);
   if (!isPlaying()) {
     Serial.println("Sending request to play file #" + (String) whichFile);
@@ -36,7 +48,6 @@ void loop() {
   } else {
     Serial.println("Currently playing");
   }
-  delay(1000);
 }
 
 int getFileCount(void) {
@@ -113,4 +124,12 @@ void readMp3Answer(void) {
     i++;
   }
   return;
+}
+
+void waitForPirToInit(void) {
+  for (int i=0; i<PIR_INIT_TIME; i++) {
+    Serial.println("Initializing PIR sensor: " + (String) (PIR_INIT_TIME - i));
+    delay(1000);
+  }
+  Serial.println("PIR sensor initialized for " + (String) PIR_INIT_TIME + " seconds");
 }
