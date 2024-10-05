@@ -35,8 +35,17 @@ void setup() {
 
 void loop() {
   int motionDetector = digitalRead(MOTION_DETECTOR);
-
-  playRandomFile();
+  // Serial.println("DETECTOR:" + (String)motionDetector);
+  if (motionDetector == HIGH) {
+    if (!isPlaying()) {
+      Serial.println("Motion detected, so requesting to play file");
+      playRandomFile();
+    } else {
+      Serial.println("Motion detected, but file is already playing");
+    }
+  } else {
+    Serial.println("No motion detected at " + (String) millis());
+  }
   delay(1000);
 }
 
