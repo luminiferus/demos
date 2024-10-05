@@ -30,24 +30,28 @@ void setup() {
 
 void loop() {
   int whichFile = random(fileCount);
-  // Serial.println("Playing file: " + (String) whichFile);
   if (!isPlaying()) {
-    Serial.println("Not playing, so going to play file " + (String) whichFile);
+    Serial.println("Sending request to play file #" + (String) whichFile);
     mp3.play(whichFile);
   } else {
-    Serial.println("Playing..." + (String) millis());
+    Serial.println("Currently playing");
   }
   delay(1000);
 }
 
-
-
 int getFileCount(void) {
   mp3.sendCommand(CMD_QUERY_TOT_TRACKS);
-  int fc = getFileCountFromAnswer();
   delay(100);
+  int fc = getFileCountFromAnswer();
+  unsigned long start = millis();
   while (fc == -1) {
+    if ((millis() - start) >= RESEND_INTERVAL) {
+      Serial.println("Answer not received, so resending request for file count");
+      mp3.sendCommand(CMD_QUERY_TOT_TRACKS);
+      delay(100);
+    }
     fc = getFileCountFromAnswer();
+    // Serial.println("Is it hanging? " + (String) millis());
     delay(100);
   }
   return fc;
@@ -69,12 +73,12 @@ bool isPlaying(void) {
   unsigned long start = millis();
   while (status == -1) {
     if ((millis() - start) >= RESEND_INTERVAL) {
-      Serial.println("RESENDING CMD_QUERY_STATUS");
+      Serial.println("Answer not received, so resending request for status");
       mp3.sendCommand(CMD_QUERY_STATUS);
       delay(100);
     }
     status = isPlayingFromAnswer();
-    Serial.println("Is it hanging? " + (String) millis());
+    // Serial.println("Is it hanging? " + (String) millis());
     delay(100);
   }
   if (status == 1) {
