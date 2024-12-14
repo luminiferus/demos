@@ -13,7 +13,7 @@ SerialMP3Player mp3(RX,TX);
 uint8_t answer[10] = {0};
 int fileCount = 0;
 const long RESEND_INTERVAL = 3000;
-const int PIR_INIT_TIME = 60; // 60 seconds to init PIR motion sensor
+const int PIR_INIT_TIME = 5; // 60 seconds to init PIR motion sensor
 
 void setup() {
   randomSeed(analogRead(0));
@@ -37,42 +37,43 @@ void loop() {
   int motionDetector = digitalRead(MOTION_DETECTOR);
   // Serial.println("DETECTOR:" + (String)motionDetector);
   if (motionDetector == HIGH) {
-    if (!isPlaying()) {
+    // if (!isPlaying()) {
       Serial.println("Motion detected, so requesting to play file");
       playRandomFile();
-    } else {
-      Serial.println("Motion detected, but file is already playing");
-    }
+      delay(10000);
+    // } else {
+      // Serial.println("Motion detected, but file is already playing");
+    // }
   } else {
     Serial.println("No motion detected at " + (String) millis());
   }
-  delay(1000);
+  delay(100);
 }
 
 void playRandomFile(void) {
   int whichFile = random(fileCount);
-  if (!isPlaying()) {
+  // if (!isPlaying()) {
     Serial.println("Sending request to play file #" + (String) whichFile);
     mp3.play(whichFile);
-  } else {
-    Serial.println("Currently playing");
-  }
+  // } else {
+    // Serial.println("Currently playing");
+  // }
 }
 
 int getFileCount(void) {
   mp3.sendCommand(CMD_QUERY_TOT_TRACKS);
-  delay(100);
+  // delay(100);
   int fc = getFileCountFromAnswer();
   unsigned long start = millis();
   while (fc == -1) {
     if ((millis() - start) >= RESEND_INTERVAL) {
       Serial.println("Answer not received, so resending request for file count");
       mp3.sendCommand(CMD_QUERY_TOT_TRACKS);
-      delay(100);
+      // delay(100);
     }
     fc = getFileCountFromAnswer();
     // Serial.println("Is it hanging? " + (String) millis());
-    delay(100);
+    // delay(100);
   }
   return fc;
 }
@@ -88,18 +89,18 @@ int getFileCountFromAnswer(void) {
 
 bool isPlaying(void) {
   mp3.sendCommand(CMD_QUERY_STATUS);
-  delay(100);
+  // delay(100);
   int status = isPlayingFromAnswer();
   unsigned long start = millis();
   while (status == -1) {
     if ((millis() - start) >= RESEND_INTERVAL) {
       Serial.println("Answer not received, so resending request for status");
       mp3.sendCommand(CMD_QUERY_STATUS);
-      delay(100);
+      // delay(100);
     }
     status = isPlayingFromAnswer();
     // Serial.println("Is it hanging? " + (String) millis());
-    delay(100);
+    // delay(100);
   }
   if (status == 1) {
     return true;
